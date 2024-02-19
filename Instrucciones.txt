@@ -1,0 +1,19 @@
+Contenido
+###
+Carpeta Client se encuentra el front
+###
+Carpeta DataBase dentro de Api
+Se encuentra un proyecto para publicar en un motor de base de datos Sql Server o bien
+se puede correr el Script que tiene datos incluidos
+###
+Carpeta Api
+Se encuentra la API que brinda los datos 
+
+
+1 Instalar SDK Net Core 8
+https://dotnet.microsoft.com/es-es/download/dotnet/8.0
+2 - Publicar base de datos de la carpeta DataBase o correr los scripts en motor sql server
+3 - URL Configurada de la API https://localhost:7215/api/controller 
+Cambiar cadena de conexion en appsettings.json del proyecto Primary
+4 - Client BLAZOR https://localhost:7088/
+el mismo esta configurado para que el componente que levante primero invoque al get de la api
