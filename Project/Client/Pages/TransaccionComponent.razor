@@ -1,0 +1,266 @@
+﻿@page "/Transaccion"
+@using Project.Shared;
+@using Project.Shared.Domain;
+@using System.Diagnostics;
+@using System.Text.Json.Serialization;
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject ApiSettings apisettings
+
+
+
+<div class="container" style="background-color:aliceblue">
+
+    &nbsp;&nbsp;
+    <div class="jumbotron jumbotron-fluid">
+        <div class="container">
+            <button class="btn btn-dark" @onclick="() => CrearNuevaTransaccion()">
+                Crear Nueva Transaccion
+            </button>
+        </div>
+    </div>
+    <br /><br />
+    @if (CreateTransaccion)
+    {
+        <TransaccionFormComponent Transaccion="@TransaccionDTOResponse" EventCall="Operations.Create"></TransaccionFormComponent>
+        <div>&nbsp; &nbsp;</div>
+        <button class="btn btn-danger"
+                @onclick="() => CrearNuevaTransaccion()">
+            Volver al Listado de Transacciones
+        </button>
+    }
+    else
+    {
+        @if (ShowInformation)
+        {
+            @if (TransaccionDTOArrayResponse == null)
+            {
+                <p><em>@MessageList</em></p>
+            }
+            else if (TransaccionDTOArrayResponse.Length == 0)
+            {
+                <p><em>@MessageList</em></p>
+            }
+            else
+            {
+                if (TransaccionDTOArrayResponse.Length > 0)
+                {
+                    <div>
+                        <EditForm Model="@TransaccionDTOArrayResponse">
+                            <InputSelect class="form-control-sm" id="dropdown" @bind-Value="@idClienteSeleccionado">
+                                @foreach (var cliente in clientes)
+                                {
+                                    <option value="@cliente">@cliente</option>
+                                }
+                            </InputSelect>
+                            <button @onclick="FiltroporCliente">Obtenes transacciones del Cliente @idClienteSeleccionado</button>
+                        </EditForm>
+                    </div>
+                }
+                <div class="col-10">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                @for (int i = 0; i < propertyInfos.Length; i++)
+                                {
+                                    <th>@propertyInfos[i].Name</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var transaccion in TransaccionDTOArrayResponse)
+                            {
+                                <tr>
+                                    <td>@transaccion.Id</td>
+                                    <td>@transaccion.ClienteId</td>
+                                    <td>@transaccion.MonedaId</td>
+                                    <td>@transaccion.MontoOperado</td>
+                                    <td>@transaccion.TipoCambio</td>
+                                    <td>@transaccion.TipoCambioDescripcion</td>
+                                    <td>@transaccion.Fecha</td>
+                                    <td>@transaccion.TipoOperacion</td>
+                                    <td>
+                                        <button class="btn btn-info"
+                                                @onclick="() => EventUpdateorDelete(transaccion)">
+                                            Transaccion @transaccion.Id
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+            }
+        }
+        else
+        {
+            <TransaccionComponent TransaccionDTO="@TransaccionDTOResponse" EventCall="update"></TransaccionComponent>
+            <br />
+            <br />
+            <button class="btn btn-danger"
+                    @onclick="() => SetValueButton()">
+                Volver al Listado de Transacciones
+            </button>
+        }
+    }
+    @if (TransaccionDTOArrayResponse?.Count() < ListFilterBackUp?.Count())
+    {
+        <button class="btn btn-danger"
+                @onclick="() => SetValueButton()">
+            Ver todas las Transacciones
+        </button>
+    }
+
+    @if (!String.IsNullOrEmpty(MessageList))
+    {
+        <p><em>@MessageList</em></p>
+    }
+
+    @if (Error != null)
+    {
+        <p><em>@Error</em></p>
+    }
+
+</div>
+
+
+
+@code
+{
+    // Opciones para el dropdown
+    private List<string> opciones = new List<string> { "Opción 1", "Opción 2", "Opción 3" };
+    private HashSet<int> clientes;
+    // Variable para almacenar la opción seleccionada
+    private string opcionSeleccionada;
+    #region Mostrar/Ocultar informacion
+    private bool ShowInformation { get; set; } = true;
+    private bool CreateTransaccion { get; set; } = false;
+    //propiedad que se utiliza para mostrar el boton de actualizar el servicio
+    private bool EnableButtonGetDataCity { get; set; } = false;
+    #endregion
+    TransaccionDTO[]? TransaccionDTOArrayResponse;
+    //CustomerDTO[]? OpenWeatherModelDTOArrayResponse;
+    TransaccionDTO? TransaccionDTOResponse = new TransaccionDTO();
+    private string Error { get; set; }
+    private PropertyInfo[] propertyInfos { get; set; }
+    public string MessageList { get; set; }
+
+    #region Metodos Carga de Pagina
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            //se obtienen las propiedades del modelo para encabezado de la lista
+            propertyInfos = await Methods.GetProperties_from_Generic_Object_Exclude_id_Async<TransaccionDTO>(new TransaccionDTO());
+            TransaccionDTOArrayResponse = await NewGetListTransaccionesApiAsync();
+            //TransaccionDTOArrayResponse = await GetListTransaccionesApiAsync();
+            if (TransaccionDTOArrayResponse.Length > 0)
+                clientes = new HashSet<int>(TransaccionDTOArrayResponse.Select(c => c.ClienteId));
+
+        }
+        catch (Exception ex)
+        {
+            if (ex.ToString().Contains("System.NullReferenceException"))
+                Error = $"Revise si el proyecto Primary.API https://localhost:7215/api/HealthCheck se encuentra en funcionamiento ---> {ex}";
+            else
+                Error = ex.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Invoca el Get del Server
+    /// </summary>
+    /// <param name="repeatcall"></param>
+    /// <returns></returns>
+    async Task<TransaccionDTO[]> GetListTransaccionesApiAsync(object repeatcall = null)
+    {
+        try
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            //invocacion a la api Primary.API
+            string responseService = await Http.GetStringAsync(LocalApiUrl());
+            //var result = JsonConvert.DeserializeObject<RootClass<TransaccionDTO>>(responseService);
+            stopwatch.Stop();
+            Error = $"TotalSeconds : {stopwatch.Elapsed.TotalSeconds} --- TotalMilliseconds : {stopwatch.Elapsed.TotalMilliseconds}";
+            return JsonConvert.DeserializeObject<ResponseService<TransaccionDTO[]>>(responseService).Data;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+            return TransaccionDTOArrayResponse;
+        }
+    }
+
+    async Task<TransaccionDTO[]> NewGetListTransaccionesApiAsync(object repeatcall = null)
+    {
+        try
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            //invocacion a la api Primary.API
+            var resultService = await Project.Client.Services.TransaccionCallAPI.callService(Http, LocalApiUrl());
+            //Se Deserializa la respuesta para llenar la lista
+            TransaccionDTOArrayResponse = JsonConvert.DeserializeObject<TransaccionDTO[]>(resultService.Data.ToString());
+            MessageList = resultService.Message;
+            stopwatch.Stop();
+            Error = $"TotalSeconds : {stopwatch.Elapsed.TotalSeconds} --- TotalMilliseconds : {stopwatch.Elapsed.TotalMilliseconds}";
+            return TransaccionDTOArrayResponse;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+            return TransaccionDTOArrayResponse;
+        }
+    }
+
+
+    string LocalApiUrl()
+        => $"{apisettings.BackEndApiUrl}Transaccion";
+    //Transaccion/transaccionesCliente/1;
+    async Task EventUpdateorDelete(TransaccionDTO transaccionDTO)
+    {
+        if (transaccionDTO != null)
+        {
+            ShowInformation = false;
+            TransaccionDTOResponse = transaccionDTO;
+        }
+    }
+
+
+    async Task SetValueButton()
+    {
+        ShowInformation = true;
+        TransaccionDTOArrayResponse = ListFilterBackUp;
+    }
+
+
+    async Task CrearNuevaTransaccion()
+    {
+        CreateTransaccion = !CreateTransaccion;
+    }
+
+    async Task FiltroporIdCliente(int idcliente)
+    {
+        TransaccionDTOArrayResponse = TransaccionDTOArrayResponse.Where(i => i.ClienteId == idcliente).ToArray();
+    }
+
+    private int idClienteSeleccionado;
+
+
+    TransaccionDTO[]? ListFilterBackUp;
+    private async Task FiltroporCliente()
+    {
+        // Obtener el valor seleccionado del dropdown
+        if (idClienteSeleccionado > 0)
+        {
+            ListFilterBackUp = ListFilterBackUp == null ? TransaccionDTOArrayResponse : ListFilterBackUp;
+            TransaccionDTOArrayResponse = ListFilterBackUp.Where(i => i.ClienteId == idClienteSeleccionado).ToArray();
+        }
+    }
+
+    #endregion
+
+}

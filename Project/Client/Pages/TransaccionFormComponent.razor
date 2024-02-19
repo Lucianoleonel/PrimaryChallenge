@@ -1,0 +1,363 @@
+﻿@using Project.Client.Services
+@using Project.Shared;
+
+<div class="jumbotron col-12">
+    <h3>Transaccion @Transaccion.Id</h3>
+
+    <EditForm Model="@opcion">
+        Debe Seleccionar una Cotizacion de Moneda:
+        <input type="checkbox" @bind="@ForzarBusqueda" />
+        @if (ForzarBusqueda)
+        {
+            <div class="jumbotron col-12">
+                <InputSelect class="form-control-sm" id="dropdown" @bind-Value="@opcion.Valor">
+                    @foreach (var opcion in opcion.busquedaCotizacionpor)
+                    {
+                        <option value="@opcion">@opcion</option>
+                    }
+                </InputSelect>
+                @if (opcion.Valor == "Fecha")
+                {
+                    <InputDate id="datePicker" class="form-control-sm" @bind-Value="@FechaBusqueda" />
+                }
+                else if (opcion.Valor == "Moneda")
+                {
+                    <InputSelect id="selectWithDictionary" class="form-control-sm" @bind-Value="@opcion.SelectMoneda">
+                        @foreach (var opcion in monedas)
+                        {
+                            <option value="@opcion.Value">@opcion.Value</option>
+                        }
+                    </InputSelect>
+                }
+                else if (opcion.Valor == "Ambos")
+                {
+                    <InputDate id="datePicker" class="form-control-sm" @bind-Value="@FechaBusqueda" />
+                    <InputSelect id="selectWithDictionary" class="form-control-sm" @bind-Value="@opcion.SelectMoneda">
+                        @foreach (var opcion in monedas)
+                        {
+                            <option value="@opcion.Value">@opcion.Value</option>
+                        }
+                    </InputSelect>
+                }
+                <button class="btn btn-info" @onclick="ProcessCallServiceDolarByDescripcionAsync">Obtener Cotizacion de Moneda (Tipo de Cambio) por @busquedaEnum</button>
+            </div>
+            <p>@opcion.Mensaje</p>
+        }
+    </EditForm>
+
+    <EditForm Model="@Transaccion" OnValidSubmit="ChangeValue">
+        <DataAnnotationsValidator />
+        <table class="table-responsive-md col-sm-12">
+            <tr class="col-sm-5">
+                <td><i>Id de Transaccion</i></td>
+                <td>
+                    <input type="text" disabled="disabled" class="form-control-sm" placeholder="@nameof(Transaccion.Id)"
+                           @bind-value="@Transaccion.Id" />
+                </td>
+            </tr>
+            <tr class="col-sm-5">
+                <td><i>Cliente Id</i></td>
+                <td>
+                    <input type="text" class="form-control-sm" placeholder="@nameof(Transaccion.ClienteId)"
+                           @bind-value="@Transaccion.ClienteId" />
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.ClienteId)"></ValidationMessage></i></td>
+            </tr>
+            <tr class="col-sm-5">
+                <td><i>Moneda Id</i></td>
+                <td>
+                    <InputSelect id="selectWithDictionary" class="form-control-sm" @bind-Value="@Transaccion.MonedaId">
+                        @foreach (var opcion in monedas)
+                        {
+                            <option value="@opcion.Key">@opcion.Value</option>
+                        }
+                    </InputSelect>
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.MonedaId)"></ValidationMessage></i></td>
+            </tr>
+            <tr class="col-sm-5">
+                <td><i>Fecha</i></td>
+                <td>
+                    <InputDate id="datePicker" class="form-control-sm" @bind-Value="@Transaccion.Fecha" />
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.Fecha)"></ValidationMessage></i></td>
+            </tr>
+            <tr class="col-sm-5">
+                <td><i>Monto Operado</i></td>
+                <td>
+                    <input type="text" class="form-control-sm" placeholder="@nameof(Transaccion.MontoOperado)"
+                           @bind-value="@Transaccion.MontoOperado" />
+
+                </td>
+
+                <td><i><ValidationMessage For="@(()=> Transaccion.MontoOperado)"></ValidationMessage></i></td>
+            </tr>
+            <tr class="col-sm-5">
+                <td><i>Tipo Cambio</i></td>
+                <td>
+                    @if (monedaCotizacionDTOs != null || monedaCotizacionDTOs.Count > 0)
+                    {
+                        @* <InputSelect id="selectList" class="form-control-sm" @bind-Value="@Transaccion.TipoCambio"> *@
+                        <InputSelect id="selectList" class="form-control-sm" @bind-Value="@SelectedValue">
+                           <option value="0">-</option>
+                            @foreach (var opcion in monedaCotizacionDTOs)
+                            {
+                                <option value="@opcion.Cotizacion-@opcion.TipoCotizacion">@opcion.Cotizacion - @opcion.TipoCotizacion </option>
+                            }
+                        </InputSelect>
+                    }
+                    else
+                    {
+
+                        <p>No hay cotizaciones para seleccionar</p>
+                    }
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.TipoCambio)"></ValidationMessage></i></td>
+            </tr>
+           @*  <tr class="col-sm-5">
+                <td><i>Tipo Descripcion</i></td>
+                <td>
+                    @if (monedaCotizacionDTOs != null || monedaCotizacionDTOs.Count > 0)
+                    {
+                        <InputSelect id="selectList" class="form-control-sm" @bind-Value="@Transaccion.TipoCambioDescripcion">
+                            <option value="0">-</option>
+                            @foreach (var opcion in monedaCotizacionDTOs)
+                            {
+                                <option value="@opcion.TipoCotizacion">@opcion.TipoCotizacion</option>
+                            }
+                        </InputSelect>
+                    }
+                    else
+                    {
+                        <p>No hay Tipo de Cotizacion para seleccionar</p>
+                    }
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.TipoCambio)"></ValidationMessage></i></td>
+            </tr> *@
+            <tr class="col-sm-5">
+                <td><i>Tipo</i></td>
+                <td>
+
+                    <InputSelect class="form-control-sm" id="dropdown" @bind-Value="@Transaccion.TipoOperacion">
+                        @foreach (var opcion in opciones)
+                        {
+                            <option value="@opcion">@opcion</option>
+                        }
+                    </InputSelect>
+
+                </td>
+                <td><i><ValidationMessage For="@(()=> Transaccion.TipoOperacion)"></ValidationMessage></i></td>
+            </tr>
+            <tr class="col-sm-7">
+                <button type="submit" class="btn btn-dark">@operation Transaccion @Transaccion.Id</button>
+            </tr>
+        </table>
+        <p>@message</p>
+    </EditForm>
+
+
+    <br /> <br />
+
+    @if (!String.IsNullOrEmpty(Errors))
+    {
+        <h3>@Errors</h3>
+    }
+
+
+</div>
+
+@code {
+
+    [Parameter] public TransaccionDTO Transaccion { get; set; }
+    [Parameter] public Operations EventCall { get; set; }
+
+
+    #region Variables de Uso
+
+    private Operations operation { get; set; }
+    private string message { get; set; }
+    private string Errors { get; set; }
+    // Opciones para el dropdown
+    private List<string> opciones = new List<string> { "", "Compra", "Venta" };
+
+    public Opcion opcion { get; set; }
+    enum BusquedaEnum
+    {
+        Moneda = 0, Fecha
+    }
+    private BusquedaEnum busquedaEnum { get; set; }
+
+    enum Monedas
+    {
+        Compra = 0, Venta
+    }
+    private Dictionary<int, string> monedas = new Dictionary<int, string>
+    {
+        { 1, "Pesos" },
+        { 2, "Dolar" }
+    };
+
+    private string selectedValue;
+
+    private string SelectedValue
+    {
+        get => selectedValue;
+        set
+        {
+            if (selectedValue != value)
+            {
+                selectedValue = value;
+                string[] valores = selectedValue.Split('-');
+                string cotizacion = valores[0].Trim();
+                decimal tipoCotizacion = Convert.ToDecimal(valores[1]);
+
+                // Establecer las propiedades en el modelo Transaccion
+                Transaccion.TipoCambioDescripcion = cotizacion;
+                Transaccion.TipoCambio = tipoCotizacion;
+            }
+        }
+    }
+
+
+    void SetValuesModel(string valor)
+    {
+        selectedValue = valor;
+        string[] valores = selectedValue.Split('-');
+        string cotizacion = valores[1].Trim();
+        decimal tipoCotizacion = Convert.ToDecimal(valores[0]);
+
+        // Establecer las propiedades en el modelo Transaccion
+        Transaccion.TipoCambioDescripcion = cotizacion;
+        Transaccion.TipoCambio = tipoCotizacion;
+    }
+
+    List<MonedaCotizacionDTO> monedaCotizacionDTOs = new List<MonedaCotizacionDTO>();
+
+    #endregion
+
+    /// <summary>
+    /// Funcion de Carga de Formulario
+    /// </summary>
+    /// <returns></returns>
+    protected async override Task OnParametersSetAsync()
+    {
+        try
+        {
+
+            Transaccion.Fecha = DateTime.Today;
+            Transaccion.TipoCambioDescripcion = "Dolar Oficial";
+            operation = EventCall;
+            //se utiliza para el EditForm del Filtrado del Tipo de Cambio a obtener
+            opcion = new Opcion();
+        }
+        catch (Exception ex)
+        {
+            Errors = ex.Message;
+        }
+
+    }
+
+    /// <summary>
+    /// Obtiene los datos de la API de acuerdo al filtro Seleccionado
+    /// </summary>
+    /// <returns></returns>
+    private async Task ProcessCallServiceDolarByDescripcionAsync()
+    {
+        try
+        {
+
+            opcion.Mensaje = string.Empty;
+            if (monedaCotizacionDTOs is null || monedaCotizacionDTOs.Count is 0 || ForzarBusqueda)
+            {
+                monedaCotizacionDTOs = new List<MonedaCotizacionDTO>();
+                //se agrega un objeto vacio para que se tenga que realizar una accion en el dropdown
+                //monedaCotizacionDTOs.Add(new MonedaCotizacionDTO(0, "", "", "", 0, DateTime.MinValue, 0));
+                RootClass responseService = new RootClass();
+
+                switch (opcion.Valor)
+                {
+                    case "Moneda":
+                        {
+                            responseService = await TransaccionCallAPI.callServiceDolarByDescripcion(Http, apisettings.BackEndApiUrl, opcion.SelectMoneda);
+                            break;
+                        }
+                    case "Fecha":
+                        {
+                            responseService = await TransaccionCallAPI.callServiceDolarByFecha(Http, apisettings.BackEndApiUrl, FechaBusqueda);
+                            break;
+                        }
+                    case "Ambos":
+                        {
+                            responseService = await TransaccionCallAPI.callServiceMonedayFecha(Http, apisettings.BackEndApiUrl, FechaBusqueda, opcion.SelectMoneda);
+                            break;
+                        }
+                }
+                if (responseService.Code == 200)
+                    monedaCotizacionDTOs.AddRange(JsonConvert.DeserializeObject<List<MonedaCotizacionDTO>>(responseService.Data.ToString()));
+
+                //monedaCotizacionDTOs = JsonConvert.DeserializeObject<List<MonedaCotizacionDTO>>(responseService.Data.ToString());
+
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("400"))
+                opcion.Mensaje = "No se obtuvieron cotizaciones con esos parametros";
+            else
+                Errors = ex.Message;
+        }
+    }
+    private bool ForzarBusqueda { get; set; }
+    private DateTime FechaBusqueda { get; set; } = DateTime.Today;
+
+    private async Task ChangeValue()
+    {
+        SetValuesModel(SelectedValue);
+        string urllost = $"{LocalApiUrl()}";
+        switch (operation)
+        {
+            case Operations.Create:
+                {
+                    await Create<TransaccionDTO>(Transaccion);
+                    break;
+                }
+
+        }
+
+
+    }
+
+    string LocalApiUrl()
+        => $"{apisettings.BackEndApiUrl}Transaccion";
+
+
+    private async Task Create<T>(T entity)
+    {
+        try
+        {
+            HttpResponseMessage response = (await Http.PostAsJsonAsync<T>(LocalApiUrl(), entity));
+            string responseService = await response.Content.ReadAsStringAsync();
+            RootClass result = JsonConvert.DeserializeObject<RootClass>(responseService);
+
+            message = result.Message;
+        }
+        catch (Exception ex)
+        {
+            Errors = ex.ToString();
+        }
+    }
+
+    #region Clase para Usar en EditForm de Filtrado
+    public class Opcion
+    {
+        public List<string> busquedaCotizacionpor = new List<string> { "", "Moneda", "Fecha", "Ambos" };
+
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+        public string Valor { get; set; }
+        public string SelectMoneda { get; set; }
+        public string Mensaje { get; set; }
+        public bool Busqueda { get; set; }
+    }
+    #endregion
+}
